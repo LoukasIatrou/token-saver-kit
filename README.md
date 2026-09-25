@@ -1,60 +1,61 @@
 # token-saver-kit
 
-One command to make Claude Code and Codex use fewer tokens.
+**Cut the tokens your coding agent burns, with one command.** Works with Claude Code and Codex.
 
-| Layer | Tool | What it does |
-|---|---|---|
-| Compress input | [Headroom](https://github.com/headroomlabs-ai/headroom) | Local proxy that shrinks tool output, files, logs and history before they reach the model. Also installs Serena for symbol-level code navigation. |
-| Keep output out of context | [context-mode](https://github.com/mksglu/context-mode) | Runs big tool/web output in a sandbox and indexes it; the agent gets a summary and searches for details. Saves session state across compaction. |
-| Route to the right model | Built-in subagents (this repo) | Small jobs go to a cheap model, normal work to a mid model, hard problems to the frontier model. Claude Code also switches to `opusplan` (Opus plans, Sonnet codes). |
-
-## Install
-
-Needs Python 3.11+, plus Node.js 22.5+ for the Codex path. Have Claude Code and/or Codex installed. The installer sets up whichever it finds.
-
-**Windows (PowerShell)**
 ```powershell
-git clone <this-repo> token-saver-kit
+# Windows
+git clone https://github.com/LoukasIatrou/token-saver-kit
 .\token-saver-kit\install.ps1
 ```
 
-**macOS / Linux**
 ```bash
-git clone <this-repo> token-saver-kit
+# macOS / Linux
+git clone https://github.com/LoukasIatrou/token-saver-kit
 sh token-saver-kit/install.sh
 ```
 
-Then restart Claude Code / Codex.
+Restart Claude Code / Codex and you're done.
 
-Options:
-- `--only claude` or `--only codex`: set up one agent.
-- `--files-only`: write the config files but skip package installs and `headroom init`.
+## What you get
 
-Safe to re-run. Every config file is backed up first as `<file>.bak-<timestamp>`.
+Three tools, each attacking a different kind of waste:
 
-## What it changes
+1. **[Headroom](https://github.com/headroomlabs-ai/headroom): compresses what goes in.** A local proxy that shrinks tool output, files, logs and chat history before the model sees them.
+2. **[context-mode](https://github.com/mksglu/context-mode): keeps big output out entirely.** Large command and web results are stored and indexed. The agent gets a summary and looks up details only when it needs them.
+3. **Model routing: uses the cheapest model that can do the job.** Three subagents the main agent hands work to:
 
-**Claude Code** (`~/.claude`)
-- `headroom init -g claude`: routes Claude Code through the Headroom proxy.
-- Installs the `context-mode` plugin.
-- Adds `agents/quick-task.md` (Haiku), `agents/builder.md` (Sonnet), `agents/deep-reasoner.md` (Opus).
-- Adds routing rules to `CLAUDE.md` between `token-saver-kit` markers.
-- Sets `"model": "opusplan"` in `settings.json`.
+   | Subagent | Claude Code | Codex | For |
+   |---|---|---|---|
+   | quick task | Haiku | gpt-5.6-luna | searches, renames, running tests, small edits |
+   | builder | Sonnet | gpt-5.6-terra | features and bug fixes with a clear plan |
+   | deep reasoner | Opus | gpt-6-astra | architecture, hard bugs, security review |
 
-**Codex** (`~/.codex`)
-- `headroom init -g codex`: routes Codex through the Headroom proxy.
-- `npm install -g context-mode`, then registers it in `config.toml` and `hooks.json`.
-- Adds `agents/quick_task.toml`, `builder.toml`, `deep_reasoner.toml`. If a model name isn't available on your account, that agent falls back to your default model. Edit the `model =` lines to change the tiers.
-- Adds routing rules and context-mode's instructions to the global `AGENTS.md`.
+   Claude Code is also set to `opusplan`: Opus while planning, Sonnet while writing code.
 
-## Check it's working
+## Requirements
+
+- Python 3.11+
+- Claude Code and/or Codex (it sets up whichever is installed)
+- Node.js 22.5+ (Codex only)
+
+## Options
 
 ```bash
-headroom savings                 # tokens saved by compression
-headroom doctor                  # proxy + client routing health
+install.sh --only claude     # set up just one agent (or --only codex)
+install.sh --files-only      # write config files, skip package installs
 ```
-In Claude Code: `/context-mode:ctx-doctor` and `/usage`. In Codex: type `ctx stats`.
 
-## Undo
+## See the savings
 
-Restore the `*.bak-<timestamp>` files, delete the agent files listed above, and run `claude plugin uninstall context-mode@context-mode`.
+```bash
+headroom savings     # tokens saved by compression
+headroom doctor      # check the proxy is running
+```
+
+In Claude Code, run `/usage`. In Codex, type `ctx stats`.
+
+## Good to know
+
+- **Safe to re-run.** Every config file it touches is backed up first as `*.bak-<timestamp>`.
+- **Codex model names differ by account.** If a model isn't available to you, that subagent uses your default model and the installer tells you. Change the tiers in [`codex/agents/`](codex/agents/).
+- **Undo:** restore the `.bak` files, delete the three agent files from `~/.claude/agents` and `~/.codex/agents`, and run `claude plugin uninstall context-mode@context-mode`.
